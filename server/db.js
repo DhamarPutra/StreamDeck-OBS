@@ -1,30 +1,78 @@
-const { Pool } = require("pg");
+const { Pool, Client } = require("pg");
 
-const pool = new Pool({
+const dbName = process.env.DB_NAME || "streamdeck";
+
+// Config for connecting to default system database to check/create target database
+const defaultDbConfig = {
   host: process.env.DB_HOST || "localhost",
   port: parseInt(process.env.DB_PORT) || 5432,
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
-  database: process.env.DB_NAME || "streamdeck",
-});
+  database: "postgres", // System database that always exists in standard PostgreSQL
+};
+
+// Target config
+const targetDbConfig = {
+  host: process.env.DB_HOST || "localhost",
+  port: parseInt(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER || "postgres",
+  password: process.env.DB_PASSWORD || "postgres",
+  database: dbName,
+};
+
+let pool = new Pool(targetDbConfig);
 
 async function initDB() {
   let retries = 10;
+  let defaultClient = null;
+
+  // 1. First, connect to default system database "postgres" to verify server status
   while (retries) {
     try {
-      // Test connection
-      await pool.query("SELECT NOW()");
-      console.log("[DB] ✅ Connected to PostgreSQL database");
+      defaultClient = new Client(defaultDbConfig);
+      await defaultClient.connect();
+      console.log("[DB] ✅ Connected to PostgreSQL database server");
       break;
     } catch (err) {
-      console.log(`[DB] ⏳ Connecting to PostgreSQL... (${retries} retries left)`);
+      console.log(`[DB] ⏳ Connecting to PostgreSQL... (${retries} retries left). Info: ${err.message}`);
+      if (defaultClient) {
+        try {
+          await defaultClient.end();
+        } catch (e) {}
+      }
       retries -= 1;
       if (retries === 0) {
-        console.error("[DB] ❌ Could not connect to PostgreSQL:", err.message);
+        console.error("[DB] ❌ Could not connect to PostgreSQL server:", err.message);
         process.exit(1);
       }
       await new Promise((res) => setTimeout(res, 3000));
     }
+  }
+
+  // 2. Automically check and create target database if missing
+  try {
+    const res = await defaultClient.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName]);
+    if (res.rows.length === 0) {
+      console.log(`[DB] 🔨 Database "${dbName}" does not exist. Creating database...`);
+      // Standard PostgreSQL CREATE DATABASE statement (interpolated safely as DB name)
+      await defaultClient.query(`CREATE DATABASE "${dbName}"`);
+      console.log(`[DB] ✅ Database "${dbName}" created successfully`);
+    }
+  } catch (err) {
+    console.error("[DB] ❌ Failed to check/create database:", err.message);
+  } finally {
+    try {
+      await defaultClient.end();
+    } catch (e) {}
+  }
+
+  // 3. Connect to the target database and build user-scoped schemas
+  try {
+    await pool.query("SELECT NOW()");
+    console.log(`[DB] ✅ Connected to target database "${dbName}"`);
+  } catch (err) {
+    console.error(`[DB] ❌ Failed to connect to target database "${dbName}":`, err.message);
+    process.exit(1);
   }
 
   // Create tables in sequence
