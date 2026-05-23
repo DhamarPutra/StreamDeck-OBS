@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Stream Deck</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Login / Register Screen -->
+    <div id="login-screen" class="login-screen hidden">
+      <div class="login-card">
+        <h2 id="auth-title">🔐 Stream Deck Login</h2>
+        <p id="auth-desc" class="login-desc">Enter your username and password</p>
+        
+        <form id="login-form">
+          <input
+            type="text"
+            id="login-username"
+            placeholder="Username..."
+            required
+            style="margin-bottom: 8px; text-align: left;" />
+          <input
+            type="password"
+            id="login-password"
+            placeholder="Password..."
+            required
+            style="text-align: left;" />
+          <button type="submit" id="auth-submit-btn" class="submit-btn" style="margin-top: 8px;">Login</button>
+        </form>
+        
+        <p id="login-error" class="login-error hidden">Invalid username or password</p>
+        
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 16px;">
+          <span id="auth-switch-text">Don't have an account?</span> 
+          <span id="auth-switch-link" style="color: var(--accent); cursor: pointer; text-decoration: underline; font-weight: 500;">Register</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="app hidden">
+      <header class="header">
+        <div class="header-left">
+          <h1>Stream Deck</h1>
+        </div>
+        <div class="header-right">
+          <button
+            id="remote-btn"
+            class="icon-btn"
+            title="Full OBS Remote"
+            style="
+              width: auto;
+              padding: 0 8px;
+              font-size: 0.85rem;
+              font-weight: 600;
+              gap: 6px;
+            ">
+            🌐 Full Remote
+          </button>
+          <div
+            style="
+              width: 1px;
+              height: 20px;
+              background: var(--border-subtle);
+              margin: 0 4px;
+            "></div>
+          <span id="obs-dot" class="status-dot disconnected" title="OBS"></span>
+          <span id="status-dot" class="status-dot disconnected"></span>
+          <span id="status-text" class="status-text">Disconnected</span>
+          <button id="settings-toggle" class="icon-btn" title="Settings">
+            ⚙️
+          </button>
+        </div>
+      </header>
+      <main id="button-grid" class="button-grid"></main>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="settings-overlay" class="settings-overlay hidden">
+      <div class="settings-panel">
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <button id="settings-close" class="icon-btn">✕</button>
+        </div>
+
+        <!-- Access Key -->
+        <section class="settings-section">
+          <h3>🔐 Access Key</h3>
+          <form id="access-key-form" class="btn-form">
+            <div class="form-group">
+              <label for="setting-access-key"
+                >Key (empty = no protection)</label
+              >
+              <input
+                type="text"
+                id="setting-access-key"
+                placeholder="Set an access key..." />
+            </div>
+            <button type="submit" class="submit-btn secondary">Save Key</button>
+          </form>
+        </section>
+
+        <!-- OBS Connection -->
+        <section class="settings-section">
+          <h3>🖥️ OBS Connection</h3>
+          <div class="obs-status-bar">
+            <span id="obs-status-dot" class="status-dot disconnected"></span>
+            <span id="obs-status-text" class="obs-status-label"
+              >Disconnected</span
+            >
+          </div>
+          <form id="obs-form" class="btn-form">
+            <div class="form-row">
+              <div class="form-group" style="flex: 2">
+                <label for="obs-host">Host</label>
+                <input type="text" id="obs-host" value="localhost" />
+              </div>
+              <div class="form-group" style="flex: 1">
+                <label for="obs-port">Port</label>
+                <input type="number" id="obs-port" value="4455" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="obs-password">Password</label>
+              <input type="text" id="obs-password" placeholder="(optional)" />
+            </div>
+            <button type="submit" class="submit-btn secondary">
+              Connect to OBS
+            </button>
+          </form>
+        </section>
+
+        <!-- Saweria -->
+        <section class="settings-section">
+          <h3>🎁 Saweria Integration</h3>
+          <div class="obs-status-bar">
+            <span
+              id="saweria-status-dot"
+              class="status-dot disconnected"></span>
+            <span id="saweria-status-text" class="obs-status-label"
+              >Disconnected</span
+            >
+          </div>
+          <form id="saweria-form" class="btn-form">
+            <div class="form-group">
+              <label for="saweria-key">Stream Key</label>
+              <input
+                type="text"
+                id="saweria-key"
+                placeholder="Dari Saweria overlay URL" />
+            </div>
+            <p
+              style="
+                font-size: 0.65rem;
+                color: var(--text-muted);
+                margin-top: -4px;
+              ">
+              Ambil dari saweria.co → Overlay → copy stream key di URL
+            </p>
+            <button type="submit" class="submit-btn secondary">
+              Connect Saweria
+            </button>
+          </form>
+        </section>
+
+        <!-- Upload Media -->
+        <section class="settings-section">
+          <h3>📁 Upload Media / Sound</h3>
+          <div id="upload-zone" class="upload-zone">
+            <input
+              type="file"
+              id="file-input"
+              multiple
+              accept="image/*,video/mp4,video/webm,audio/mp3,audio/wav,audio/ogg,audio/mpeg,audio/mp4,.mp3,.wav,.ogg,.m4a"
+              hidden />
+            <p class="upload-hint">
+              Drag & drop or <span class="upload-link">browse files</span>
+            </p>
+            <p class="upload-sub">
+              GIF, PNG, JPG, WEBP, MP4, WEBM, MP3, WAV, OGG, M4A
+            </p>
+          </div>
+          <div id="upload-progress" class="upload-progress hidden">
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <span id="progress-text" class="progress-text">Uploading...</span>
+          </div>
+          <div id="media-list" class="media-list"></div>
+        </section>
+
+        <!-- Add Button -->
+        <section class="settings-section">
+          <h3>➕ Add Button</h3>
+          <form id="add-btn-form" class="btn-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="btn-type">Type</label>
+                <select id="btn-type">
+                  <option value="scene">🖥️ Scene</option>
+                  <option value="media">🎬 Media</option>
+                  <option value="sound">🔊 Sound</option>
+                  <option value="clear">🧹 Clear</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="btn-icon">Icon</label>
+                <input
+                  type="text"
+                  id="btn-icon"
+                  placeholder="😂"
+                  maxlength="4" />
+              </div>
+              <div class="form-group">
+                <label for="btn-color">Color</label>
+                <input type="color" id="btn-color" value="#6366f1" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="btn-label">Label</label>
+              <input
+                type="text"
+                id="btn-label"
+                placeholder="Button Name"
+                required />
+            </div>
+            <div id="scene-fields" class="form-group">
+              <label for="btn-scene">Scene Name</label>
+              <select id="btn-scene">
+                <option value="">Select a scene...</option>
+              </select>
+              <input
+                type="text"
+                id="btn-scene-custom"
+                placeholder="Or type scene name manually"
+                style="margin-top: 6px" />
+            </div>
+            <div id="media-fields" class="form-group hidden">
+              <label for="btn-media-url">Media File</label>
+              <select id="btn-media-url">
+                <option value="">Select uploaded media...</option>
+              </select>
+              
+              <!-- Scale Slider -->
+              <div class="form-group" style="margin-top: 8px">
+                <div style="display: flex; justify-content: space-between;">
+                  <label for="btn-scale">Scale / Size</label>
+                  <span id="btn-scale-label" style="font-size: 0.75rem; color: var(--text-secondary)">100%</span>
+                </div>
+                <input type="range" id="btn-scale" min="10" max="200" value="100" class="volume-slider" />
+              </div>
+
+              <div class="form-row" style="margin-top: 8px">
+                <div class="form-group">
+                  <label for="btn-duration">Duration (ms)</label>
+                  <input
+                    type="number"
+                    id="btn-duration"
+                    value="5000"
+                    min="1000"
+                    step="500" />
+                </div>
+                <div class="form-group">
+                  <label for="btn-position">Position</label>
+                  <select id="btn-position">
+                    <option value="center">Center</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                    <option value="custom">🎯 Custom Position</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Custom Position Fields -->
+              <div id="btn-custom-position-fields" class="form-group hidden" style="margin-top: 8px; border-left: 2px solid var(--accent); padding-left: 10px;">
+                <div style="display: flex; gap: 10px;">
+                  <div class="form-group">
+                    <div style="display: flex; justify-content: space-between;">
+                      <label for="btn-custom-x">Position X</label>
+                      <span id="btn-custom-x-label" style="font-size: 0.7rem; color: var(--text-muted)">50%</span>
+                    </div>
+                    <input type="range" id="btn-custom-x" min="0" max="100" value="50" class="volume-slider" />
+                  </div>
+                  <div class="form-group">
+                    <div style="display: flex; justify-content: space-between;">
+                      <label for="btn-custom-y">Position Y</label>
+                      <span id="btn-custom-y-label" style="font-size: 0.7rem; color: var(--text-muted)">50%</span>
+                    </div>
+                    <input type="range" id="btn-custom-y" min="0" max="100" value="50" class="volume-slider" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Visual Position Trigger Button -->
+              <button type="button" id="btn-visual-position-trigger" class="submit-btn secondary" style="margin-top: 8px; font-size: 0.75rem; padding: 6px 12px; width: 100%;">
+                🎯 Set Position & Size Visually
+              </button>
+
+              <div class="form-group" style="margin-top: 8px; flex-direction: row; align-items: center; gap: 8px;">
+                <input type="checkbox" id="btn-chroma-key" style="width: 16px; height: 16px; cursor: pointer;" />
+                <label for="btn-chroma-key" style="cursor: pointer; margin-bottom: 0; text-transform: none; font-size: 0.8rem; color: var(--text-primary)">
+                  🟢 Greenscreen (Chroma Key)
+                </label>
+              </div>
+            </div>
+            <div id="sound-fields" class="form-group hidden">
+              <label for="btn-sound-url">Sound File</label>
+              <select id="btn-sound-url">
+                <option value="">Select uploaded audio...</option>
+              </select>
+              <div class="form-group" style="margin-top: 8px">
+                <label for="btn-volume">Volume</label>
+                <div class="volume-row">
+                  <input
+                    type="range"
+                    id="btn-volume"
+                    min="0"
+                    max="100"
+                    value="80"
+                    class="volume-slider" />
+                  <span id="btn-volume-label" class="volume-label">80%</span>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="submit-btn" id="form-submit-btn">
+              Add Button
+            </button>
+          </form>
+        </section>
+
+        <!-- Manage Buttons -->
+        <section class="settings-section">
+          <h3>📋 Manage Buttons</h3>
+          <div id="manage-list" class="manage-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Edit Button</h3>
+          <button id="edit-close" class="icon-btn">✕</button>
+        </div>
+        <form id="edit-btn-form" class="btn-form">
+          <input type="hidden" id="edit-id" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-type">Type</label>
+              <select id="edit-type">
+                <option value="scene">🖥️ Scene</option>
+                <option value="media">🎬 Media</option>
+                <option value="sound">🔊 Sound</option>
+                <option value="clear">🧹 Clear</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit-icon">Icon</label>
+              <input type="text" id="edit-icon" maxlength="4" />
+            </div>
+            <div class="form-group">
+              <label for="edit-color">Color</label>
+              <input type="color" id="edit-color" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-label">Label</label>
+            <input type="text" id="edit-label" required />
+          </div>
+          <div id="edit-scene-fields" class="form-group">
+            <label for="edit-scene">Scene Name</label>
+            <input type="text" id="edit-scene" />
+          </div>
+          <div id="edit-media-fields" class="form-group hidden">
+            <label for="edit-media-url">Media File</label>
+            <select id="edit-media-url">
+              <option value="">Select uploaded media...</option>
+            </select>
+
+            <!-- Scale Slider -->
+            <div class="form-group" style="margin-top: 8px">
+              <div style="display: flex; justify-content: space-between;">
+                <label for="edit-scale">Scale / Size</label>
+                <span id="edit-scale-label" style="font-size: 0.75rem; color: var(--text-secondary)">100%</span>
+              </div>
+              <input type="range" id="edit-scale" min="10" max="200" value="100" class="volume-slider" />
+            </div>
+
+            <div class="form-row" style="margin-top: 8px">
+              <div class="form-group">
+                <label for="edit-duration">Duration (ms)</label>
+                <input
+                  type="number"
+                  id="edit-duration"
+                  value="5000"
+                  min="1000"
+                  step="500" />
+              </div>
+              <div class="form-group">
+                <label for="edit-position">Position</label>
+                <select id="edit-position">
+                  <option value="center">Center</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="bottom-right">Bottom Right</option>
+                  <option value="custom">🎯 Custom Position</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Custom Position Fields -->
+            <div id="edit-custom-position-fields" class="form-group hidden" style="margin-top: 8px; border-left: 2px solid var(--accent); padding-left: 10px;">
+              <div style="display: flex; gap: 10px;">
+                <div class="form-group">
+                  <div style="display: flex; justify-content: space-between;">
+                    <label for="edit-custom-x">Position X</label>
+                    <span id="edit-custom-x-label" style="font-size: 0.7rem; color: var(--text-muted)">50%</span>
+                  </div>
+                  <input type="range" id="edit-custom-x" min="0" max="100" value="50" class="volume-slider" />
+                </div>
+                <div class="form-group">
+                  <div style="display: flex; justify-content: space-between;">
+                    <label for="edit-custom-y">Position Y</label>
+                    <span id="edit-custom-y-label" style="font-size: 0.7rem; color: var(--text-muted)">50%</span>
+                  </div>
+                  <input type="range" id="edit-custom-y" min="0" max="100" value="50" class="volume-slider" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Visual Position Trigger Button -->
+            <button type="button" id="edit-visual-position-trigger" class="submit-btn secondary" style="margin-top: 8px; font-size: 0.75rem; padding: 6px 12px; width: 100%;">
+              🎯 Set Position & Size Visually
+            </button>
+
+            <div class="form-group" style="margin-top: 8px; flex-direction: row; align-items: center; gap: 8px;">
+              <input type="checkbox" id="edit-chroma-key" style="width: 16px; height: 16px; cursor: pointer;" />
+              <label for="edit-chroma-key" style="cursor: pointer; margin-bottom: 0; text-transform: none; font-size: 0.8rem; color: var(--text-primary)">
+                🟢 Greenscreen (Chroma Key)
+              </label>
+            </div>
+          </div>
+          <div id="edit-sound-fields" class="form-group hidden">
+            <label for="edit-sound-url">Sound File</label>
+            <select id="edit-sound-url">
+              <option value="">Select uploaded audio...</option>
+            </select>
+            <div class="form-group" style="margin-top: 8px">
+              <label for="edit-volume">Volume</label>
+              <div class="volume-row">
+                <input
+                  type="range"
+                  id="edit-volume"
+                  min="0"
+                  max="100"
+                  value="80"
+                  class="volume-slider" />
+                <span id="edit-volume-label" class="volume-label">80%</span>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="submit-btn">Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Visual Positioning Modal (Popup) -->
+    <div id="position-modal" class="modal-overlay hidden">
+      <div class="modal" style="max-width: 500px; padding: 20px;">
+        <div class="modal-header">
+          <h3>🎯 Visual Position Tool</h3>
+          <button id="position-close" class="icon-btn">✕</button>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; margin-top: -6px;">
+          Click or drag inside the box to place the overlay. Adjust the size slider below.
+        </p>
+        
+        <!-- 16:9 Mini Canvas -->
+        <div id="preview-canvas" style="
+          width: 100%;
+          aspect-ratio: 16/9;
+          background: #09090d;
+          border: 1px solid var(--border-input);
+          border-radius: var(--radius-sm);
+          position: relative;
+          overflow: hidden;
+          margin-bottom: 16px;
+          cursor: crosshair;
+        ">
+          <!-- Background screen grids for wow aesthetic -->
+          <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 20px 20px;"></div>
+          <!-- Draggable box representing overlay media -->
+          <div id="preview-box" style="
+            width: 80px;
+            height: 80px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 2px dashed var(--accent);
+            border-radius: var(--radius-sm);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--text-primary);
+            font-weight: 700;
+            user-select: none;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+          ">
+            📺 Overlay
+          </div>
+        </div>
+        
+        <!-- Controls inside popup modal -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between;">
+            <label id="position-scale-label">Size: 100%</label>
+          </div>
+          <input type="range" id="position-scale-slider" min="10" max="200" value="100" class="volume-slider" />
+        </div>
+        
+        <button id="position-save" class="submit-btn" style="width: 100%">Apply Position</button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

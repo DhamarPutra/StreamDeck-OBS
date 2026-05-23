@@ -1,0 +1,170 @@
+/* ── Reset ──────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: transparent;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* ── Utility ───────────────────────────────────── */
+.hidden {
+  display: none !important;
+}
+
+/* ── Scene Label ───────────────────────────────── */
+.scene-label {
+  position: fixed;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  animation: scene-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.scene-label span {
+  display: inline-block;
+  padding: 12px 32px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes scene-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.scene-label.exit {
+  animation: scene-exit 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes scene-exit {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+}
+
+/* ── Media Container ───────────────────────────── */
+.media-container {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Position variants */
+.media-container.pos-center {
+  inset: 0;
+}
+
+.media-container.pos-bottom-right {
+  bottom: 40px;
+  right: 40px;
+}
+
+.media-container.pos-bottom-left {
+  bottom: 40px;
+  left: 40px;
+}
+
+.media-container.pos-top-right {
+  top: 40px;
+  right: 40px;
+}
+
+.media-container.pos-top-left {
+  top: 40px;
+  left: 40px;
+}
+
+.media-container.pos-custom {
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Wrapper for decoupling scale and animations */
+.media-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── Media Element ─────────────────────────────── */
+.media-element {
+  max-width: 80vw;
+  max-height: 80vh;
+  border-radius: 16px;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
+  animation: media-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.media-element-canvas {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+/* Smaller size for corner positions */
+.pos-bottom-right .media-element,
+.pos-bottom-left .media-element,
+.pos-top-right .media-element,
+.pos-top-left .media-element {
+  max-width: 300px;
+  max-height: 300px;
+}
+
+@keyframes media-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.media-element.exit {
+  animation: media-exit 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes media-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6) translateY(20px);
+  }
+}
