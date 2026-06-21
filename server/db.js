@@ -118,6 +118,23 @@ async function initDB() {
   try {
     await pool.query(createTablesQuery);
     console.log("[DB] ✅ Database tables initialized");
+
+    // Auto-seed admin user if no users exist
+    const userCheck = await pool.query("SELECT COUNT(*) FROM users");
+    if (parseInt(userCheck.rows[0].count) === 0) {
+      const bcrypt = require("bcryptjs");
+      const crypto = require("crypto");
+      const passwordHash = await bcrypt.hash("admin", 10);
+      const accessKey = crypto.randomBytes(32).toString("hex");
+
+      const userRes = await pool.query(
+        "INSERT INTO users (username, password_hash, access_key) VALUES ($1, $2, $3) RETURNING id",
+        ["admin", passwordHash, accessKey]
+      );
+      const newUserId = userRes.rows[0].id;
+      await pool.query("INSERT INTO settings (user_id) VALUES ($1)", [newUserId]);
+      console.log(`[DB] 🔑 Created default admin user - Username: admin, Password: admin, Access Key: ${accessKey}`);
+    }
   } catch (err) {
     console.error("[DB] ❌ Failed to initialize tables:", err.message);
     process.exit(1);

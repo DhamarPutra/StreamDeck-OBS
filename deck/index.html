@@ -207,6 +207,8 @@
                   <option value="scene">🖥️ Scene</option>
                   <option value="media">🎬 Media</option>
                   <option value="sound">🔊 Sound</option>
+                  <option value="ai_switcher">🤖 AI Auto-Pilot</option>
+                  <option value="voice_command">🗣️ Voice Command</option>
                   <option value="clear">🧹 Clear</option>
                 </select>
               </div>
@@ -331,6 +333,46 @@
                 </div>
               </div>
             </div>
+            
+            <!-- AI Switcher Fields -->
+            <div id="ai-switcher-fields" class="form-group ai-switcher-container hidden">
+              <div class="form-group">
+                <label for="btn-ai-talk-scene">Talk Scene (Camera)</label>
+                <select id="btn-ai-talk-scene">
+                  <option value="">Select a scene...</option>
+                </select>
+                <input type="text" id="btn-ai-talk-scene-custom" placeholder="Or type scene name manually" style="margin-top: 6px" />
+              </div>
+              <div class="form-group" style="margin-top: 8px">
+                <label for="btn-ai-quiet-scene">Quiet Scene (Game)</label>
+                <select id="btn-ai-quiet-scene">
+                  <option value="">Select a scene...</option>
+                </select>
+                <input type="text" id="btn-ai-quiet-scene-custom" placeholder="Or type scene name manually" style="margin-top: 6px" />
+              </div>
+              <div class="form-group" style="margin-top: 8px">
+                <div style="display: flex; justify-content: space-between;">
+                  <label for="btn-ai-threshold">Mic Sensitivity (Threshold)</label>
+                  <span id="btn-ai-threshold-label" style="font-size: 0.75rem; color: var(--text-secondary)">15%</span>
+                </div>
+                <input type="range" id="btn-ai-threshold" min="1" max="100" value="15" class="volume-slider" />
+              </div>
+              <div class="form-group" style="margin-top: 8px">
+                <label for="btn-ai-delay">Silence Delay (ms)</label>
+                <input type="number" id="btn-ai-delay" value="3000" min="500" step="500" />
+              </div>
+            </div>
+            
+            <!-- Voice Command Fields -->
+            <div id="voice-command-fields" class="form-group ai-switcher-container hidden">
+              <label style="font-weight: bold; color: var(--accent); margin-bottom: 8px;">🗣️ Voice Command Bindings</label>
+              <div id="voice-commands-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Rows will be dynamically rendered here -->
+              </div>
+              <button type="button" id="btn-voice-add-row" class="submit-btn" style="margin-top: 10px; background: var(--bg-card); border: 1px dashed var(--accent); color: var(--text-primary);">
+                ➕ Add Command Row
+              </button>
+            </div>
             <button type="submit" class="submit-btn" id="form-submit-btn">
               Add Button
             </button>
@@ -361,6 +403,8 @@
                 <option value="scene">🖥️ Scene</option>
                 <option value="media">🎬 Media</option>
                 <option value="sound">🔊 Sound</option>
+                <option value="ai_switcher">🤖 AI Auto-Pilot</option>
+                <option value="voice_command">🗣️ Voice Command</option>
                 <option value="clear">🧹 Clear</option>
               </select>
             </div>
@@ -469,6 +513,46 @@
                 <span id="edit-volume-label" class="volume-label">80%</span>
               </div>
             </div>
+          </div>
+          
+          <!-- AI Switcher Fields (Edit Form) -->
+          <div id="edit-ai-switcher-fields" class="form-group ai-switcher-container hidden">
+            <div class="form-group">
+              <label for="edit-ai-talk-scene">Talk Scene (Camera)</label>
+              <select id="edit-ai-talk-scene">
+                <option value="">Select a scene...</option>
+              </select>
+              <input type="text" id="edit-ai-talk-scene-custom" placeholder="Or type scene name manually" style="margin-top: 6px" />
+            </div>
+            <div class="form-group" style="margin-top: 8px">
+              <label for="edit-ai-quiet-scene">Quiet Scene (Game)</label>
+              <select id="edit-ai-quiet-scene">
+                <option value="">Select a scene...</option>
+              </select>
+              <input type="text" id="edit-ai-quiet-scene-custom" placeholder="Or type scene name manually" style="margin-top: 6px" />
+            </div>
+            <div class="form-group" style="margin-top: 8px">
+              <div style="display: flex; justify-content: space-between;">
+                <label for="edit-ai-threshold">Mic Sensitivity (Threshold)</label>
+                <span id="edit-ai-threshold-label" style="font-size: 0.75rem; color: var(--text-secondary)">15%</span>
+              </div>
+              <input type="range" id="edit-ai-threshold" min="1" max="100" value="15" class="volume-slider" />
+            </div>
+            <div class="form-group" style="margin-top: 8px">
+              <label for="edit-ai-delay">Silence Delay (ms)</label>
+              <input type="number" id="edit-ai-delay" value="3000" min="500" step="500" />
+            </div>
+          </div>
+          
+          <!-- Voice Command Fields (Edit Form) -->
+          <div id="edit-voice-command-fields" class="form-group ai-switcher-container hidden">
+            <label style="font-weight: bold; color: var(--accent); margin-bottom: 8px;">🗣️ Voice Command Bindings</label>
+            <div id="edit-voice-commands-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Rows will be dynamically rendered here -->
+            </div>
+            <button type="button" id="edit-voice-add-row" class="submit-btn" style="margin-top: 10px; background: var(--bg-card); border: 1px dashed var(--accent); color: var(--text-primary);">
+              ➕ Add Command Row
+            </button>
           </div>
           <button type="submit" class="submit-btn">Save Changes</button>
         </form>

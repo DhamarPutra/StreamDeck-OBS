@@ -600,7 +600,9 @@ body {
 
 .modal {
   width: 100%;
-  max-width: 400px;
+  max-width: 450px;
+  max-height: 85vh;
+  overflow-y: auto;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
@@ -886,3 +888,12 @@ body {
 .form-group input[type="password"]:focus {
   border-color: var(--accent);
 }
+
+/* ── AI Switcher Fields Container ────────────────── */
+.ai-switcher-container {
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+

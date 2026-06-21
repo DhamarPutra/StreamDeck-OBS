@@ -358,6 +358,8 @@ wss.on("connection", (ws, req) => {
         }
 
         authenticatedUser = result.rows[0].id;
+        ws.userId = authenticatedUser;
+        ws.accessKey = msg.key;
         const group = getClientGroup(authenticatedUser);
         group[clientType].add(ws);
         console.log(`[WS - User ${authenticatedUser}] Registered ${clientType} client`);
@@ -381,10 +383,17 @@ wss.on("connection", (ws, req) => {
       if (msg.type === "switch-scene") {
         await switchUserOBSScene(authenticatedUser, msg.scene);
       }
+      if ((msg.type === "show-media" || msg.type === "play-sound") && msg.url) {
+        const separator = msg.url.includes("?") ? "&" : "?";
+        msg.url = `${msg.url}${separator}key=${ws.accessKey}`;
+      }
       broadcastToOverlays(authenticatedUser, msg);
     }
 
     if (authenticatedUser && clientType === "overlay") {
+      if (msg.type === "switch-scene") {
+        await switchUserOBSScene(authenticatedUser, msg.scene);
+      }
       broadcastToDecks(authenticatedUser, msg);
     }
   });
@@ -836,11 +845,13 @@ async function handleAPI(req, res) {
   // ── Media List ─────────────────────────────────
   if (method === "GET" && pathname === "/api/media") {
     try {
+      const userRes = await pool.query("SELECT access_key FROM users WHERE id = $1", [userId]);
+      const accessKey = userRes.rows[0].access_key;
       const result = await pool.query("SELECT * FROM media WHERE user_id = $1 ORDER BY uploaded_at DESC", [userId]);
       sendJSON(res, 200, {
         files: result.rows.map((row) => ({
           filename: row.filename,
-          url: row.url,
+          url: `${row.url}?key=${accessKey}`,
           size: row.file_size,
           type: row.file_type,
         })),

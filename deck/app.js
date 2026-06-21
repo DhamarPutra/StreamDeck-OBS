@@ -14,6 +14,9 @@
   let ws = null;
   let buttons = [];
   let activeScene = null;
+  let activeAiSwitcherId = null;
+  let activeVoiceCommandId = null;
+  let obsScenesList = [];
   let mediaFiles = [];
   let obsConnected = false;
   let accessKey = localStorage.getItem("deck-access-key") || "";
@@ -42,6 +45,7 @@
 
   // Access key
   const accessKeyForm = document.getElementById("access-key-form");
+  const settingAccessKey = document.getElementById("setting-access-key");
 
   // OBS form
   const obsForm = document.getElementById("obs-form");
@@ -113,6 +117,36 @@
   const editSceneFields = document.getElementById("edit-scene-fields");
   const editMediaFields = document.getElementById("edit-media-fields");
   const editSoundFields = document.getElementById("edit-sound-fields");
+
+  // AI Switcher Fields (Add Form)
+  const aiSwitcherFields = document.getElementById("ai-switcher-fields");
+  const btnAiTalkScene = document.getElementById("btn-ai-talk-scene");
+  const btnAiTalkSceneCustom = document.getElementById("btn-ai-talk-scene-custom");
+  const btnAiQuietScene = document.getElementById("btn-ai-quiet-scene");
+  const btnAiQuietSceneCustom = document.getElementById("btn-ai-quiet-scene-custom");
+  const btnAiThreshold = document.getElementById("btn-ai-threshold");
+  const btnAiThresholdLabel = document.getElementById("btn-ai-threshold-label");
+  const btnAiDelay = document.getElementById("btn-ai-delay");
+
+  // AI Switcher Fields (Edit Form)
+  const editAiSwitcherFields = document.getElementById("edit-ai-switcher-fields");
+  const editAiTalkScene = document.getElementById("edit-ai-talk-scene");
+  const editAiTalkSceneCustom = document.getElementById("edit-ai-talk-scene-custom");
+  const editAiQuietScene = document.getElementById("edit-ai-quiet-scene");
+  const editAiQuietSceneCustom = document.getElementById("edit-ai-quiet-scene-custom");
+  const editAiThreshold = document.getElementById("edit-ai-threshold");
+  const editAiThresholdLabel = document.getElementById("edit-ai-threshold-label");
+  const editAiDelay = document.getElementById("edit-ai-delay");
+
+  // Voice Command Fields (Add Form)
+  const voiceCommandFields = document.getElementById("voice-command-fields");
+  const voiceCommandsList = document.getElementById("voice-commands-list");
+  const btnVoiceAddRow = document.getElementById("btn-voice-add-row");
+
+  // Voice Command Fields (Edit Form)
+  const editVoiceCommandFields = document.getElementById("edit-voice-command-fields");
+  const editVoiceCommandsList = document.getElementById("edit-voice-commands-list");
+  const editVoiceAddRow = document.getElementById("edit-voice-add-row");
 
   // Visual Positioning Modal (Popup)
   const positionModal = document.getElementById("position-modal");
@@ -397,13 +431,20 @@
   async function loadOBSScenes() {
     try {
       const data = await api("GET", "/api/obs-scenes");
-      const scenes = data.scenes || [];
-      btnScene.innerHTML = '<option value="">Select a scene...</option>';
-      scenes.forEach((s) => {
-        const opt = document.createElement("option");
-        opt.value = s;
-        opt.textContent = s;
-        btnScene.appendChild(opt);
+      obsScenesList = data.scenes || [];
+      
+      const selects = [btnScene, btnAiTalkScene, btnAiQuietScene, editAiTalkScene, editAiQuietScene];
+      selects.forEach((sel) => {
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">Select a scene...</option>';
+        obsScenesList.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s;
+          sel.appendChild(opt);
+        });
+        sel.value = currentVal;
       });
     } catch {}
   }
@@ -466,6 +507,38 @@
           volume: btn.action.volume ?? 0.8,
         });
         break;
+      case "ai_switcher":
+        if (activeAiSwitcherId === btn.id) {
+          activeAiSwitcherId = null;
+          send({ type: "toggle-ai-switcher", active: false });
+        } else {
+          activeAiSwitcherId = btn.id;
+          send({
+            type: "toggle-ai-switcher",
+            active: true,
+            talkScene: btn.action.talkScene,
+            quietScene: btn.action.quietScene,
+            threshold: btn.action.threshold,
+            delay: btn.action.delay,
+          });
+        }
+        updateActiveStates();
+        break;
+      case "voice_command":
+        if (activeVoiceCommandId === btn.id) {
+          activeVoiceCommandId = null;
+          send({ type: "toggle-voice-command", active: false });
+        } else {
+          activeVoiceCommandId = btn.id;
+          const commands = btn.action?.commands || [];
+          send({
+            type: "toggle-voice-command",
+            active: true,
+            commands: commands,
+          });
+        }
+        updateActiveStates();
+        break;
       case "clear":
         send({ type: "clear-media" });
         break;
@@ -475,8 +548,15 @@
   function updateActiveStates() {
     grid.querySelectorAll(".deck-btn").forEach((el) => {
       const btn = buttons.find((b) => b.id === el.dataset.id);
-      if (btn && btn.type === "scene")
-        el.classList.toggle("active", btn.action.scene === activeScene);
+      if (btn) {
+        if (btn.type === "scene") {
+          el.classList.toggle("active", btn.action.scene === activeScene);
+        } else if (btn.type === "ai_switcher") {
+          el.classList.toggle("active", btn.id === activeAiSwitcherId);
+        } else if (btn.type === "voice_command") {
+          el.classList.toggle("active", btn.id === activeVoiceCommandId);
+        }
+      }
     });
   }
 
@@ -583,22 +663,133 @@
   });
 
   // ── Type field toggling ─────────────────────────
-  function toggleTypeFields(type, sceneEl, mediaEl, soundEl) {
-    sceneEl.classList.toggle("hidden", type !== "scene");
-    mediaEl.classList.toggle("hidden", type !== "media");
-    soundEl.classList.toggle("hidden", type !== "sound");
+  function toggleTypeFields(type, sceneEl, mediaEl, soundEl, aiEl, voiceEl) {
+    if (sceneEl) sceneEl.classList.toggle("hidden", type !== "scene");
+    if (mediaEl) mediaEl.classList.toggle("hidden", type !== "media");
+    if (soundEl) soundEl.classList.toggle("hidden", type !== "sound");
+    if (aiEl) aiEl.classList.toggle("hidden", type !== "ai_switcher");
+    if (voiceEl) voiceEl.classList.toggle("hidden", type !== "voice_command");
   }
-  btnType.addEventListener("change", () =>
-    toggleTypeFields(btnType.value, sceneFields, mediaFields, soundFields),
-  );
-  editType.addEventListener("change", () =>
+  btnType.addEventListener("change", () => {
+    const isVoice = btnType.value === "voice_command";
+    toggleTypeFields(btnType.value, sceneFields, mediaFields, soundFields, aiSwitcherFields, voiceCommandFields);
+    if (isVoice) {
+      renderVoiceCommandRows(voiceCommandsList, []);
+    }
+  });
+  editType.addEventListener("change", () => {
     toggleTypeFields(
       editType.value,
       editSceneFields,
       editMediaFields,
       editSoundFields,
-    ),
-  );
+      editAiSwitcherFields,
+      editVoiceCommandFields,
+    );
+  });
+
+  // ── Voice Commands Dynamic Rows ─────────────────
+  function createVoiceCommandRow(phraseVal = "", sceneVal = "") {
+    const row = document.createElement("div");
+    row.className = "voice-command-row";
+    row.style = "display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border-input); padding-bottom: 10px;";
+
+    // Phrase field
+    const phraseGroup = document.createElement("div");
+    phraseGroup.className = "form-group";
+    phraseGroup.style = "flex: 2; min-width: 120px;";
+    phraseGroup.innerHTML = `
+      <label style="font-size: 0.65rem;">Trigger Phrase</label>
+      <input type="text" class="row-phrase-input" placeholder="e.g. pindah game" value="${phraseVal}" />
+    `;
+
+    // Scene field
+    const sceneGroup = document.createElement("div");
+    sceneGroup.className = "form-group";
+    sceneGroup.style = "flex: 3; min-width: 150px;";
+    
+    const label = document.createElement("label");
+    label.style.fontSize = "0.65rem";
+    label.textContent = "Target Scene";
+    sceneGroup.appendChild(label);
+
+    const select = document.createElement("select");
+    select.className = "row-scene-select";
+    select.innerHTML = '<option value="">Select a scene...</option>';
+    
+    let isFound = false;
+    obsScenesList.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s;
+      if (s === sceneVal) {
+        opt.selected = true;
+        isFound = true;
+      }
+      select.appendChild(opt);
+    });
+
+    const customInput = document.createElement("input");
+    customInput.type = "text";
+    customInput.className = "row-scene-custom";
+    customInput.placeholder = "Or type manually";
+    customInput.style = "margin-top: 6px;";
+    if (sceneVal && !isFound) {
+      customInput.value = sceneVal;
+    }
+
+    // Sync select and custom input
+    select.addEventListener("change", () => {
+      if (select.value) customInput.value = "";
+    });
+    customInput.addEventListener("input", () => {
+      if (customInput.value.trim()) select.value = "";
+    });
+
+    sceneGroup.appendChild(select);
+    sceneGroup.appendChild(customInput);
+
+    // Delete Button
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "submit-btn";
+    deleteBtn.style = "flex: 1; min-width: 60px; height: 32px; background: var(--danger); padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; margin-bottom: 2px;";
+    deleteBtn.textContent = "Hapus";
+    deleteBtn.addEventListener("click", () => {
+      row.remove();
+    });
+
+    row.appendChild(phraseGroup);
+    row.appendChild(sceneGroup);
+    row.appendChild(deleteBtn);
+
+    return row;
+  }
+
+  function renderVoiceCommandRows(container, commandsList) {
+    container.innerHTML = "";
+    if (commandsList && commandsList.length > 0) {
+      commandsList.forEach((cmd) => {
+        container.appendChild(createVoiceCommandRow(cmd.phrase, cmd.scene));
+      });
+    } else {
+      container.appendChild(createVoiceCommandRow("", ""));
+    }
+  }
+
+  btnVoiceAddRow.addEventListener("click", () => {
+    voiceCommandsList.appendChild(createVoiceCommandRow("", ""));
+  });
+  editVoiceAddRow.addEventListener("click", () => {
+    editVoiceCommandsList.appendChild(createVoiceCommandRow("", ""));
+  });
+
+  btnAiThreshold.addEventListener("input", () => {
+    btnAiThresholdLabel.textContent = `${btnAiThreshold.value}%`;
+  });
+  editAiThreshold.addEventListener("input", () => {
+    editAiThresholdLabel.textContent = `${editAiThreshold.value}%`;
+  });
 
   // ── Volume sliders ──────────────────────────────
   btnVolume.addEventListener("input", () => {
@@ -794,12 +985,45 @@
       }
       action.url = btnSoundUrl.value;
       action.volume = parseInt(btnVolume.value) / 100;
+    } else if (type === "ai_switcher") {
+      const talkScene = btnAiTalkScene.value || btnAiTalkSceneCustom.value.trim();
+      const quietScene = btnAiQuietScene.value || btnAiQuietSceneCustom.value.trim();
+      if (!talkScene || !quietScene) {
+        toast("Enter talk and quiet scene names", "error");
+        return;
+      }
+      action.talkScene = talkScene;
+      action.quietScene = quietScene;
+      action.threshold = parseInt(btnAiThreshold.value) || 15;
+      action.delay = parseInt(btnAiDelay.value) || 3000;
+    } else if (type === "voice_command") {
+      const commands = [];
+      const rows = voiceCommandsList.querySelectorAll(".voice-command-row");
+      for (const row of rows) {
+        const phraseInput = row.querySelector(".row-phrase-input");
+        const sceneSelect = row.querySelector(".row-scene-select");
+        const sceneCustom = row.querySelector(".row-scene-custom");
+        
+        const phrase = phraseInput.value.trim();
+        const scene = sceneSelect.value || sceneCustom.value.trim();
+        
+        if (phrase && scene) {
+          commands.push({ phrase, scene });
+        }
+      }
+      if (commands.length === 0) {
+        toast("Enter at least one voice command mapping", "error");
+        return;
+      }
+      action.commands = commands;
     }
 
     const defaultIcons = {
       scene: "🖥️",
       media: "🎬",
       sound: "🔊",
+      ai_switcher: "🤖",
+      voice_command: "🗣️",
       clear: "🧹"
     };
     const finalIcon = btnIcon.value.trim() || defaultIcons[type] || "⬜";
@@ -826,8 +1050,11 @@
       btnCustomXLabel.textContent = "50%";
       btnCustomY.value = 50;
       btnCustomYLabel.textContent = "50%";
+      btnAiThreshold.value = 15;
+      btnAiThresholdLabel.textContent = "15%";
+      btnAiDelay.value = 3000;
       toggleCustomFields("center", btnCustomPositionFields);
-      toggleTypeFields("scene", sceneFields, mediaFields, soundFields);
+      toggleTypeFields("scene", sceneFields, mediaFields, soundFields, aiSwitcherFields);
       await loadButtons();
     } catch {
       toast("Failed to add button", "error");
@@ -864,17 +1091,44 @@
       editCustomYLabel.textContent = `${cy}%`;
 
       toggleCustomFields(editPosition.value, editCustomPositionFields);
-    } else if (btn.type === "sound") {
-      editSoundUrl.value = btn.action?.url || "";
-      const v = Math.round((btn.action?.volume ?? 0.8) * 100);
-      editVolume.value = v;
-      editVolumeLabel.textContent = `${v}%`;
+    } else if (btn.type === "ai_switcher") {
+      const talkVal = btn.action?.talkScene || "";
+      const quietVal = btn.action?.quietScene || "";
+      
+      const talkSelects = Array.from(editAiTalkScene.options).map(o => o.value);
+      if (talkVal && talkSelects.includes(talkVal)) {
+        editAiTalkScene.value = talkVal;
+        editAiTalkSceneCustom.value = "";
+      } else {
+        editAiTalkScene.value = "";
+        editAiTalkSceneCustom.value = talkVal;
+      }
+
+      const quietSelects = Array.from(editAiQuietScene.options).map(o => o.value);
+      if (quietVal && quietSelects.includes(quietVal)) {
+        editAiQuietScene.value = quietVal;
+        editAiQuietSceneCustom.value = "";
+      } else {
+        editAiQuietScene.value = "";
+        editAiQuietSceneCustom.value = quietVal;
+      }
+
+      const th = btn.action?.threshold || 15;
+      editAiThreshold.value = th;
+      editAiThresholdLabel.textContent = `${th}%`;
+
+      editAiDelay.value = btn.action?.delay || 3000;
+    } else if (btn.type === "voice_command") {
+      const commands = btn.action?.commands || [];
+      renderVoiceCommandRows(editVoiceCommandsList, commands);
     }
     toggleTypeFields(
       btn.type,
       editSceneFields,
       editMediaFields,
       editSoundFields,
+      editAiSwitcherFields,
+      editVoiceCommandFields,
     );
     populateMediaSelects();
     if (btn.type === "media" && btn.action?.url)
@@ -905,12 +1159,45 @@
     } else if (type === "sound") {
       action.url = editSoundUrl.value;
       action.volume = parseInt(editVolume.value) / 100;
+    } else if (type === "ai_switcher") {
+      const talkScene = editAiTalkScene.value || editAiTalkSceneCustom.value.trim();
+      const quietScene = editAiQuietScene.value || editAiQuietSceneCustom.value.trim();
+      if (!talkScene || !quietScene) {
+        toast("Enter talk and quiet scene names", "error");
+        return;
+      }
+      action.talkScene = talkScene;
+      action.quietScene = quietScene;
+      action.threshold = parseInt(editAiThreshold.value) || 15;
+      action.delay = parseInt(editAiDelay.value) || 3000;
+    } else if (type === "voice_command") {
+      const commands = [];
+      const rows = editVoiceCommandsList.querySelectorAll(".voice-command-row");
+      for (const row of rows) {
+        const phraseInput = row.querySelector(".row-phrase-input");
+        const sceneSelect = row.querySelector(".row-scene-select");
+        const sceneCustom = row.querySelector(".row-scene-custom");
+        
+        const phrase = phraseInput.value.trim();
+        const scene = sceneSelect.value || sceneCustom.value.trim();
+        
+        if (phrase && scene) {
+          commands.push({ phrase, scene });
+        }
+      }
+      if (commands.length === 0) {
+        toast("Enter at least one voice command mapping", "error");
+        return;
+      }
+      action.commands = commands;
     }
 
     const defaultIcons = {
       scene: "🖥️",
       media: "🎬",
       sound: "🔊",
+      ai_switcher: "🤖",
+      voice_command: "🗣️",
       clear: "🧹"
     };
     const finalIcon = editIcon.value.trim() || defaultIcons[type] || "⬜";

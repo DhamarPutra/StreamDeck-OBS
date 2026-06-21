@@ -18,6 +18,21 @@
     <!-- Media container -->
     <div id="media-container" class="media-container hidden"></div>
 
+    <!-- Settings Panel (Mic Selection) -->
+    <div id="overlay-settings" class="overlay-settings">
+      <div id="settings-toggle" class="settings-toggle">⚙️</div>
+      <div id="settings-content" class="settings-content hidden">
+        <label for="mic-select">Microphone Device:</label>
+        <select id="mic-select">
+          <option value="">Default Microphone</option>
+        </select>
+        <div style="font-size: 0.65rem; color: #a0aec0; margin-top: 4px; line-height: 1.2;">
+          💡 <strong>Info:</strong> VAD (Auto-Pilot) mendukung pemilihan mic di atas. Fitur Voice Command (Speech-to-Text) selalu menggunakan mic bawaan default Windows.
+        </div>
+        <button id="settings-save" style="margin-top: 8px;">Save & Close</button>
+      </div>
+    </div>
+
     <script src="app.js"></script>
   </body>
 </html>

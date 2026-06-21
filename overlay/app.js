@@ -21,6 +21,29 @@
   let sceneTimer = null;
   let mediaTimer = null;
 
+  // AI Switcher (VAD) State
+  let audioContext = null;
+  let mediaStream = null;
+  let analyserNode = null;
+  let vadInterval = null;
+  let silenceTimeout = null;
+  let isTalking = false;
+
+  // Speech Recognition (Voice Commands) State
+  let recognition = null;
+  let isListeningSpeech = false;
+  let speechCommands = [];
+
+  // Cache config for auto-restart on device change
+  let lastVadConfig = null;
+  let lastSpeechConfig = null;
+
+  // Settings DOM Refs
+  const settingsToggle = document.getElementById("settings-toggle");
+  const settingsContent = document.getElementById("settings-content");
+  const micSelect = document.getElementById("mic-select");
+  const settingsSave = document.getElementById("settings-save");
+
   // ── WebSocket ───────────────────────────────────
   function connect() {
     ws = new WebSocket(WS_URL);
@@ -52,6 +75,12 @@
           break;
         case "clear-media":
           handleClearMedia();
+          break;
+        case "toggle-ai-switcher":
+          handleToggleAiSwitcher(msg);
+          break;
+        case "toggle-voice-command":
+          handleToggleVoiceCommand(msg);
           break;
       }
     };
@@ -233,6 +262,262 @@
     const el = mediaContainer.querySelector(".media-element");
     if (el) hideMedia(el);
     else clearMediaImmediate();
+  }
+
+  // ── Audio VAD AI Auto-Pilot ─────────────────────
+  function handleToggleAiSwitcher(msg) {
+    stopVAD();
+    if (msg.active) {
+      startVAD(msg.talkScene, msg.quietScene, msg.threshold, msg.delay);
+    }
+  }
+
+  function startVAD(talkScene, quietScene, threshold, silenceDelay) {
+    console.log(`[VAD] Starting VAD: Talk = "${talkScene}", Quiet = "${quietScene}", Threshold = ${threshold}%, Delay = ${silenceDelay}ms`);
+    lastVadConfig = { active: true, talkScene, quietScene, threshold, silenceDelay };
+
+    const micId = localStorage.getItem("overlay-mic-id");
+    const constraints = {
+      audio: micId ? { deviceId: { exact: micId } } : true
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then((stream) => {
+        mediaStream = stream;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextClass();
+        const source = audioContext.createMediaStreamSource(stream);
+        analyserNode = audioContext.createAnalyser();
+        analyserNode.fftSize = 512;
+        source.connect(analyserNode);
+
+        const bufferLength = analyserNode.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        vadInterval = setInterval(() => {
+          if (!analyserNode) return;
+          analyserNode.getByteFrequencyData(dataArray);
+
+          // Vocal frequencies: ~85Hz to ~1000Hz
+          // With 44100Hz sample rate and fftSize 512, each bin is ~86Hz
+          // Bins 1 to 12 cover ~86Hz to ~1032Hz
+          let sum = 0;
+          const startBin = 1;
+          const endBin = 12;
+          for (let i = startBin; i <= endBin; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / (endBin - startBin + 1);
+          const percentage = Math.round((average / 255) * 100);
+
+          if (percentage >= threshold) {
+            // Talking detected
+            if (silenceTimeout) {
+              clearTimeout(silenceTimeout);
+              silenceTimeout = null;
+            }
+            if (!isTalking) {
+              isTalking = true;
+              console.log(`[VAD] Speech detected: ${percentage}% >= ${threshold}%. Switching to: ${talkScene}`);
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "switch-scene", scene: talkScene }));
+              }
+            }
+          } else {
+            // Silence detected
+            if (isTalking) {
+              if (!silenceTimeout) {
+                console.log(`[VAD] Silence detected: ${percentage}% < ${threshold}%. Delay timer started (${silenceDelay}ms)`);
+                silenceTimeout = setTimeout(() => {
+                  isTalking = false;
+                  silenceTimeout = null;
+                  console.log(`[VAD] Silence delay expired. Switching to: ${quietScene}`);
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "switch-scene", scene: quietScene }));
+                  }
+                }, silenceDelay);
+              }
+            }
+          }
+        }, 100);
+      })
+      .catch((err) => {
+        console.error("[VAD] Failed to access microphone:", err);
+      });
+  }
+
+  function stopVAD() {
+    lastVadConfig = { active: false };
+    console.log("[VAD] Stopping VAD");
+    if (vadInterval) {
+      clearInterval(vadInterval);
+      vadInterval = null;
+    }
+    if (silenceTimeout) {
+      clearTimeout(silenceTimeout);
+      silenceTimeout = null;
+    }
+    isTalking = false;
+    if (audioContext) {
+      audioContext.close().catch((e) => console.error("[VAD] AudioContext close error:", e));
+      audioContext = null;
+    }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    }
+    analyserNode = null;
+  }
+
+  // ── Voice Commands (STT) ────────────────────────
+  function handleToggleVoiceCommand(msg) {
+    stopSpeechRecognition();
+    if (msg.active && msg.commands && msg.commands.length > 0) {
+      startSpeechRecognition(msg.commands);
+    }
+  }
+
+  function startSpeechRecognition(commands) {
+    console.log("[Speech] Starting speech recognition. Commands available:", commands);
+    lastSpeechConfig = { active: true, commands };
+    speechCommands = commands;
+    isListeningSpeech = true;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("[Speech] Web Speech API is not supported in this browser.");
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "id-ID";
+
+    recognition.onresult = (event) => {
+      if (!isListeningSpeech) return;
+      const resultIndex = event.resultIndex;
+      const transcript = event.results[resultIndex][0].transcript.trim().toLowerCase();
+      console.log(`[Speech] Result: "${transcript}"`);
+
+      // Match transcript with the commands using fuzzy containment matching
+      const matched = speechCommands.find((cmd) => {
+        const phrase = cmd.phrase.toLowerCase();
+        return transcript.includes(phrase);
+      });
+
+      if (matched) {
+        console.log(`[Speech] Match found! Phrase: "${matched.phrase}" -> Switch to scene: "${matched.scene}"`);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "switch-scene", scene: matched.scene }));
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("[Speech] Recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        isListeningSpeech = false;
+      }
+    };
+
+    recognition.onend = () => {
+      console.log("[Speech] Recognition ended.");
+      if (isListeningSpeech) {
+        console.log("[Speech] Auto-restarting recognition loop in 1s...");
+        setTimeout(() => {
+          if (!isListeningSpeech) return;
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error("[Speech] Failed to restart recognition:", e);
+          }
+        }, 1000);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("[Speech] Failed to start recognition:", e);
+    }
+  }
+
+  function stopSpeechRecognition() {
+    lastSpeechConfig = { active: false };
+    console.log("[Speech] Stopping speech recognition");
+    isListeningSpeech = false;
+    speechCommands = [];
+    if (recognition) {
+      // Clear event handlers to prevent asynchronous race conditions
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try {
+        recognition.stop();
+      } catch (e) {
+        // Already stopped or not started
+      }
+      recognition = null;
+    }
+  }
+
+  // ── Settings Panel Logic ────────────────────────
+  if (settingsToggle && settingsContent && micSelect && settingsSave) {
+    settingsToggle.addEventListener("click", () => {
+      const isHidden = settingsContent.classList.toggle("hidden");
+      if (!isHidden) {
+        populateMicSelect();
+      }
+    });
+
+    settingsSave.addEventListener("click", () => {
+      const savedId = micSelect.value;
+      localStorage.setItem("overlay-mic-id", savedId);
+      settingsContent.classList.add("hidden");
+      console.log("[Settings] Saved microphone ID:", savedId);
+
+      // Restart active VAD if running
+      if (lastVadConfig && lastVadConfig.active) {
+        console.log("[Settings] Restarting VAD with new microphone...");
+        const currentVAD = { ...lastVadConfig };
+        stopVAD();
+        startVAD(currentVAD.talkScene, currentVAD.quietScene, currentVAD.threshold, currentVAD.delay);
+      }
+
+      // Restart Speech Recognition if running
+      if (lastSpeechConfig && lastSpeechConfig.active) {
+        console.log("[Settings] Restarting Speech Recognition with new microphone...");
+        const currentSpeech = { ...lastSpeechConfig };
+        stopSpeechRecognition();
+        startSpeechRecognition(currentSpeech.commands);
+      }
+    });
+  }
+
+  function populateMicSelect() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(() => {
+        return navigator.mediaDevices.enumerateDevices();
+      })
+      .then((devices) => {
+        const currentVal = localStorage.getItem("overlay-mic-id") || "";
+        micSelect.innerHTML = '<option value="">Default Microphone</option>';
+        
+        const audioInputs = devices.filter(d => d.kind === "audioinput");
+        audioInputs.forEach((d) => {
+          const opt = document.createElement("option");
+          opt.value = d.deviceId;
+          opt.textContent = d.label || `Microphone (${d.deviceId.slice(0, 5)}...)`;
+          if (d.deviceId === currentVal) {
+            opt.selected = true;
+          }
+          micSelect.appendChild(opt);
+        });
+      })
+      .catch((err) => {
+        console.error("[Settings] Error populating microphones:", err);
+      });
   }
 
   // ── Init ────────────────────────────────────────

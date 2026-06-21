@@ -168,3 +168,83 @@ body {
     transform: scale(0.6) translateY(20px);
   }
 }
+
+/* ── Overlay Settings ───────────────────────────── */
+.overlay-settings {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+  font-family: "Inter", sans-serif;
+  color: #fff;
+}
+
+.settings-toggle {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-size: 1.1rem;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.settings-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(30deg);
+}
+
+.settings-content {
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.settings-content label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a0aec0;
+}
+
+.settings-content select {
+  background: #2d3748;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  padding: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-content button {
+  background: #3182ce;
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+
+.settings-content button:hover {
+  background: #2b6cb0;
+}
